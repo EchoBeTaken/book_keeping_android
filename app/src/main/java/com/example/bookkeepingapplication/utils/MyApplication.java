@@ -10,7 +10,7 @@ public class MyApplication extends Application {
 
     private int result = 0;
     private Intent intent = null;
-    private MediaProjectionManager mMediaProjectionManager = null;
+    private MediaProjectionManager mediaProjectionManager = null;
 
     public int getResult() {
         return result;
@@ -28,11 +28,11 @@ public class MyApplication extends Application {
         this.intent = intent;
     }
 
-    public MediaProjectionManager getmMediaProjectionManager() {
-        return mMediaProjectionManager;
+    public MediaProjectionManager getMediaProjectionManager() {
+        return mediaProjectionManager;
     }
 
-    public void setmMediaProjectionManager(MediaProjectionManager mMediaProjectionManager) {
-        this.mMediaProjectionManager = mMediaProjectionManager;
+    public void setMediaProjectionManager(MediaProjectionManager mMediaProjectionManager) {
+        this.mediaProjectionManager = mMediaProjectionManager;
     }
 }

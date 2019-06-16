@@ -23,6 +23,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 
+import com.example.bookkeepingapplication.services.ScreenCaptureService;
 import com.example.bookkeepingapplication.services.ShotService;
 import com.example.bookkeepingapplication.utils.MyApplication;
 
@@ -61,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
 //                finish();
 //                Intent startIntent = new Intent(getApplicationContext(), ShotService.class);
 //                startService(startIntent);
-                Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.ic_launcher_background);
+                Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.test);
                 if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.M){
                     if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE)!= PackageManager.PERMISSION_GRANTED){
                         //没有权限则申请权限
@@ -71,7 +72,6 @@ public class MainActivity extends AppCompatActivity {
                         //有权限直接执行,docode()不用做处理
                         Log.d(TAG, "onImageAvailable: 2222");
                         saveBitmap(bitmap);
-
                     }
                 }else {
                     //小于6.0，不用申请权限，直接执行
@@ -115,16 +115,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startService() {
+//        ((MyApplication) getApplication()).setmMediaProjectionManager(mMediaProjectionManager);
         if (intent != null && result != 0) {
             ((MyApplication) getApplication()).setResult(result);
             ((MyApplication) getApplication()).setIntent(intent);
-            Intent intent = new Intent(getApplicationContext(), ShotService.class);
+            Intent intent = new Intent(getApplicationContext(), ScreenCaptureService.class);
             startService(intent);
         } else {
             startActivityForResult(mMediaProjectionManager.createScreenCaptureIntent(), REQUEST_MEDIA_PROJECTION);
-            ((MyApplication) getApplication()).setmMediaProjectionManager(mMediaProjectionManager);
-
+//            ((MyApplication) getApplication()).setmMediaProjectionManager(mMediaProjectionManager);
         }
+        ((MyApplication) getApplication()).setMediaProjectionManager(mMediaProjectionManager);
     }
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
@@ -138,9 +139,8 @@ public class MainActivity extends AppCompatActivity {
                 intent = data;
                 ((MyApplication) getApplication()).setResult(resultCode);
                 ((MyApplication) getApplication()).setIntent(data);
-                Intent intent = new Intent(getApplicationContext(), ShotService.class);
+                Intent intent = new Intent(getApplicationContext(), ScreenCaptureService.class);
                 startService(intent);
-
                 finish();
             }
         }
@@ -149,6 +149,7 @@ public class MainActivity extends AppCompatActivity {
     private void saveBitmap(Bitmap bitmap) {
         String pathImage = Environment.getExternalStorageDirectory().getPath() + "/Pictures/";
         String imageName = pathImage + System.currentTimeMillis() + ".jpg";
+        Log.d(TAG, "saveBitmap: " + imageName);
 
         try {
             File fileImage = new File(imageName);

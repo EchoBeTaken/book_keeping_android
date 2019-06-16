@@ -3,8 +3,10 @@
     package="com.example.bookkeepingapplication">
 
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
-
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:name=".utils.MyApplication"
@@ -15,9 +17,13 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <service
-            android:name=".services.ShotService"
+            android:name=".services.ScreenCaptureService"
             android:enabled="true"
             android:exported="true"></service>
+        <service
+            android:name=".services.ShotService"
+            android:enabled="true"
+            android:exported="true" />
 
         <activity android:name=".MainActivity">
             <intent-filter>

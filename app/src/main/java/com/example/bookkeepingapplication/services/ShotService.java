@@ -155,7 +155,7 @@ public class ShotService extends Service {
     public void setUpMediaProjection() {
         mResultData = ((MyApplication) getApplication()).getIntent();
         mResultCode = ((MyApplication) getApplication()).getResult();
-        mMediaProjectionManager1 = ((MyApplication) getApplication()).getmMediaProjectionManager();
+        mMediaProjectionManager1 = ((MyApplication) getApplication()).getMediaProjectionManager();
         mMediaProjection = mMediaProjectionManager1.getMediaProjection(mResultCode, mResultData);
         Log.i(TAG, "mMediaProjection defined");
     }
