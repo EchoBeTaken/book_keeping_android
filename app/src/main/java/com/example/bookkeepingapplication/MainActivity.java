@@ -24,13 +24,17 @@ import android.view.View;
 import android.widget.Button;
 
 import com.example.bookkeepingapplication.services.ScreenCaptureService;
-import com.example.bookkeepingapplication.services.ShotService;
 import com.example.bookkeepingapplication.utils.MyApplication;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Timer;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Response;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -45,6 +49,9 @@ public class MainActivity extends AppCompatActivity {
     private Intent intent = null;
     private int result = 0;
     private MediaProjectionManager mMediaProjectionManager = null;
+
+    String imagePath = "";
+    private Timer timer = null;
 
 
     @Override
@@ -71,13 +78,15 @@ public class MainActivity extends AppCompatActivity {
                     }else {
                         //有权限直接执行,docode()不用做处理
                         Log.d(TAG, "onImageAvailable: 2222");
-                        saveBitmap(bitmap);
+                        imagePath = saveBitmap(bitmap);
                     }
                 }else {
                     //小于6.0，不用申请权限，直接执行
                     Log.d(TAG, "onImageAvailable: 3333");
-                    saveBitmap(bitmap);
+                    imagePath = saveBitmap(bitmap);
                 }
+//                Log.d(TAG, "onClick: " + imagePath.substring(imagePath.indexOf("\\/"), ima));
+
                 startService();
             }
         });
@@ -86,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Log.d(TAG, "onClick: 结束服务");
-                Intent stopIntent = new Intent(getApplicationContext(), ShotService.class);
+                Intent stopIntent = new Intent(getApplicationContext(), ScreenCaptureService.class);
                 stopService(stopIntent);
             }
         });
@@ -146,7 +155,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void saveBitmap(Bitmap bitmap) {
+    private String saveBitmap(Bitmap bitmap) {
         String pathImage = Environment.getExternalStorageDirectory().getPath() + "/Pictures/";
         String imageName = pathImage + System.currentTimeMillis() + ".jpg";
         Log.d(TAG, "saveBitmap: " + imageName);
@@ -173,6 +182,7 @@ public class MainActivity extends AppCompatActivity {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return imageName;
     }
 
 }
